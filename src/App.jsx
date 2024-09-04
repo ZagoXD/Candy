@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import './App.css';
 import cursorImage from './assets/images/mouse.png';
 import bala1 from './assets/images/bala1.png';
@@ -9,6 +9,8 @@ import choco1 from './assets/images/choco1.png';
 import pirulito1 from './assets/images/pirulito1.png';
 import pirulito2 from './assets/images/pirulito2.png';
 import pirulito3 from './assets/images/pirulito3.png';
+import popSoundFile from './assets/sounds/pop.mp3';
+import StartButton from './components/StartButton'; // Importando o componente StartButton
 
 const fallingItems = [bala1, bala2, bala3, chicle1, choco1, pirulito1, pirulito2, pirulito3];
 
@@ -16,6 +18,33 @@ function App() {
   const [mouseX, setMouseX] = useState(0);
   const [score, setScore] = useState(0);
   const [fallingObjects, setFallingObjects] = useState([]);
+  const [isAudioUnlocked, setIsAudioUnlocked] = useState(false); 
+  const [gameStarted, setGameStarted] = useState(false); // Controla se o jogo começou
+  const [isPaused, setIsPaused] = useState(false); // Controla se o jogo está pausado
+
+  const popSound = useRef(null);
+
+  // Função para iniciar ou continuar o jogo
+  const startGame = () => {
+    setIsPaused(false); // Remove a pausa, se houver
+    setGameStarted(true); // Inicia o jogo
+  };
+
+  const unlockAudio = () => {
+    if (!isAudioUnlocked) {
+      popSound.current = new Audio(popSoundFile);
+      setIsAudioUnlocked(true);
+    }
+  };
+
+  const playPopSound = () => {
+    if (popSound.current) {
+      popSound.current.currentTime = 0;
+      popSound.current.play().catch((error) => {
+        console.error('Erro ao tocar o áudio:', error);
+      });
+    }
+  };
 
   const cursorWidth = 70;
   const cursorHeight = 70;
@@ -25,21 +54,39 @@ function App() {
   const handleMouseMove = (event) => {
     const maxX = window.innerWidth - cursorWidth;
     setMouseX(Math.min(event.clientX, maxX));
+    unlockAudio();
   };
 
   const getDifficultySettings = (currentScore) => {
     if (currentScore <= 5) {
-      return { speedMultiplier: 0.2, spawnRate: 3000 }; 
+      return { speedMultiplier: 0.5, spawnRate: 2000 };
     } else if (currentScore <= 10) {
-      return { speedMultiplier: 0.7, spawnRate: 2000 };
+      return { speedMultiplier: 1, spawnRate: 1500 };
     } else if (currentScore <= 15) {
-      return { speedMultiplier: 1.2, spawnRate: 1000 };
+      return { speedMultiplier: 1.5, spawnRate: 1000 };
     } else {
-      return { speedMultiplier: 2, spawnRate: 500 }; 
+      return { speedMultiplier: 2, spawnRate: 500 };
     }
   };
 
+  // Captura da tecla "Esc" para pausar o jogo
   useEffect(() => {
+    const handleKeyDown = (event) => {
+      if (event.key === 'Escape' && gameStarted) {
+        setIsPaused((prev) => !prev); // Alterna o estado de pausa
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [gameStarted]);
+
+  useEffect(() => {
+    if (!gameStarted || isPaused) return; // Pausa o jogo se estiver pausado
+
     const { spawnRate } = getDifficultySettings(score);
 
     const createFallingObject = () => {
@@ -47,9 +94,9 @@ function App() {
       const object = {
         id: Date.now(),
         src: fallingItems[randomIndex],
-        x: Math.random() * (window.innerWidth - objectWidth), 
-        y: -100, // Posição Y inicial (fora da tela)
-        speed: (Math.random() * 5 + 2) * getDifficultySettings(score).speedMultiplier, // Velocidade de queda ajustada pela dificuldade
+        x: Math.random() * (window.innerWidth - objectWidth),
+        y: -100,
+        speed: (Math.random() * 5 + 2) * getDifficultySettings(score).speedMultiplier,
       };
       setFallingObjects((prevObjects) => [...prevObjects, object]);
     };
@@ -57,26 +104,30 @@ function App() {
     const intervalId = setInterval(createFallingObject, spawnRate);
 
     return () => clearInterval(intervalId);
-  }, [score]);
+  }, [score, gameStarted, isPaused]);
 
   useEffect(() => {
+    if (!gameStarted || isPaused) return;
+
     const updateFallingObjects = () => {
       setFallingObjects((prevObjects) =>
         prevObjects
           .map((obj) => ({
             ...obj,
-            y: obj.y + obj.speed, 
+            y: obj.y + obj.speed,
           }))
-          .filter((obj) => obj.y < window.innerHeight) 
+          .filter((obj) => obj.y < window.innerHeight)
       );
     };
 
     const intervalId = setInterval(updateFallingObjects, 16);
 
     return () => clearInterval(intervalId);
-  }, []);
+  }, [gameStarted, isPaused]);
 
   useEffect(() => {
+    if (!gameStarted || isPaused) return;
+
     const checkCollisions = () => {
       setFallingObjects((prevObjects) => {
         let newScore = score;
@@ -84,16 +135,17 @@ function App() {
           const isColliding =
             obj.x < mouseX + cursorWidth &&
             obj.x + objectWidth > mouseX &&
-            obj.y + objectHeight >= 650 && 
-            obj.y < 650 + cursorHeight; 
+            obj.y + objectHeight >= 650 &&
+            obj.y < 650 + cursorHeight;
+
           if (isColliding) {
-            newScore += 1; 
+            newScore += 1;
+            playPopSound();
           }
 
-          return !isColliding; // Remove os objetos que colidiram
+          return !isColliding;
         });
 
-        // Atualiza a pontuação se houve colisões
         if (newObjects.length !== prevObjects.length) {
           setScore(newScore);
         }
@@ -105,52 +157,62 @@ function App() {
     const intervalId = setInterval(checkCollisions, 16);
 
     return () => clearInterval(intervalId);
-  }, [mouseX, fallingObjects, score]);
+  }, [mouseX, fallingObjects, score, gameStarted, isPaused]);
 
-  // Função para zerar a pontuação se algum objeto passar da linha Y=650 sem colidir
   useEffect(() => {
-    const resetScoreOnMiss = () => {
+    if (!gameStarted || isPaused) return;
+
+    const checkMissedObjects = () => {
       const missedObject = fallingObjects.some(
         (obj) => obj.y >= 650 && !(obj.x >= mouseX && obj.x <= mouseX + cursorWidth)
       );
 
       if (missedObject) {
-        setScore(0);
+        setScore(0); 
       }
     };
 
-    const intervalId = setInterval(resetScoreOnMiss, 16);
+    const intervalId = setInterval(checkMissedObjects, 16);
 
     return () => clearInterval(intervalId);
-  }, [fallingObjects, mouseX]);
+  }, [fallingObjects, mouseX, gameStarted, isPaused]);
 
   useEffect(() => {
-    window.addEventListener('mousemove', handleMouseMove);
+    if (gameStarted && !isPaused) {
+      window.addEventListener('mousemove', handleMouseMove);
+    } else {
+      window.removeEventListener('mousemove', handleMouseMove);
+    }
 
     return () => {
       window.removeEventListener('mousemove', handleMouseMove);
     };
-  }, []);
+  }, [gameStarted, isPaused]);
 
   return (
     <div className="App">
-      <h1>Pontuação: {score}</h1>
-      <img
-        src={cursorImage}
-        alt="Cursor"
-        className="custom-cursor"
-        style={{ left: `${mouseX}px` }}
-      />
-
-      {fallingObjects.map((obj) => (
-        <img
-          key={obj.id}
-          src={obj.src}
-          alt="Falling object"
-          className="falling-object"
-          style={{ left: `${obj.x}px`, top: `${obj.y}px` }}
-        />
-      ))}
+      {!gameStarted || isPaused ? (
+        <StartButton onStart={startGame} isPaused={isPaused} /> // Exibe o botão de "Continuar" se pausado
+      ) : (
+        <>
+          <h1>Pontuação: {score}</h1>
+          <img
+            src={cursorImage}
+            alt="Cursor"
+            className="custom-cursor"
+            style={{ left: `${mouseX}px` }}
+          />
+          {fallingObjects.map((obj) => (
+            <img
+              key={obj.id}
+              src={obj.src}
+              alt="Falling object"
+              className="falling-object"
+              style={{ left: `${obj.x}px`, top: `${obj.y}px` }}
+            />
+          ))}
+        </>
+      )}
     </div>
   );
 }
