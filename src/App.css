@@ -1,3 +1,40 @@
+@font-face {
+  font-family: 'Press Start 2P';
+  src: url('./assets/fonts/PressStart2P-Regular.ttf') format('truetype');
+}
+
+.score-container h1 {
+  font-family: 'Press Start 2P', cursive;
+  color: #ff6f61; 
+  background: linear-gradient(135deg, #ff8a80, #ffcccb); 
+  padding: 5px 10px;
+  border-radius: 10px;
+  font-size: 15px;
+  text-align: center;
+  border: 3px solid #f45b69;
+  box-shadow: 0 5px 10px rgba(0, 0, 0, 0.1);
+  margin-bottom: 20px;
+  transition: transform 0.2s ease;
+}
+
+.score-container .score {
+  color: #007bff;
+  background: linear-gradient(135deg, #9fd3ff, #cce7ff);
+  border: 3px solid #0056b3;
+}
+
+.score-container .level {
+  color: #ffc107;
+  background: linear-gradient(135deg, #ffe680, #fff3cd);
+  border: 3px solid #e0a800;
+}
+
+.score-container .time-left {
+  color: #28a745;
+  background: linear-gradient(135deg, #a8e6a2, #d4ffdc);
+  border: 3px solid #218838;
+}
+
 .App {
   height: 100vh;
   display: flex;

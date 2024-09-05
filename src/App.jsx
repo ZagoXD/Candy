@@ -9,12 +9,26 @@ import choco1 from './assets/images/choco1.png';
 import pirulito1 from './assets/images/pirulito1.png';
 import pirulito2 from './assets/images/pirulito2.png';
 import pirulito3 from './assets/images/pirulito3.png';
+import bomb from './assets/images/bomb.png'
+import double from './assets/images/x2.png'
+import bubbleSoundFile from './assets/sounds/bubble.mp3';
 import popSoundFile from './assets/sounds/pop.mp3';
+import bombSoundFile from './assets/sounds/bomb.mp3';
 import StartButton from './components/StartButton';
 import NextButton from './components/NextButton';
 import PauseButton from './components/PauseButton';
 
-const fallingItems = [bala1, bala2, bala3, chicle1, choco1, pirulito1, pirulito2, pirulito3];
+const fallingItems = [
+  { src: bala1, type: 'candy' },
+  { src: bala2, type: 'candy' },
+  { src: bala3, type: 'candy' },
+  { src: chicle1, type: 'candy' },
+  { src: choco1, type: 'candy' },
+  { src: pirulito1, type: 'candy' },
+  { src: pirulito2, type: 'candy' },
+  { src: pirulito3, type: 'candy' },
+  { src: bomb, type: 'bomb' },
+];
 
 const levels = [
   { level: 1, requiredPoints: 5, speedMultiplier: 0.5, spawnRate: 2000 },
@@ -37,6 +51,7 @@ function App() {
   const [gamePaused, setGamePaused] = useState(false); 
 
   const popSound = useRef(null);
+  const bombSound = useRef(null);
   const timerRef = useRef(null);
   const spawnObjectsRef = useRef(null); 
 
@@ -72,6 +87,7 @@ function App() {
   const unlockAudio = () => {
     if (!isAudioUnlocked) {
       popSound.current = new Audio(popSoundFile);
+      bombSound.current = new Audio(bombSoundFile);
       setIsAudioUnlocked(true);
     }
   };
@@ -81,6 +97,15 @@ function App() {
       popSound.current.currentTime = 0;
       popSound.current.play().catch((error) => {
         console.error('Erro ao tocar o áudio:', error);
+      });
+    }
+  };
+
+  const playBombSound = () => {
+    if (bombSound.current) {
+      bombSound.current.currentTime = 0;
+      bombSound.current.play().catch((error) => {
+        console.error('Erro ao tocar o som da bomba:', error);
       });
     }
   };
@@ -101,13 +126,15 @@ function App() {
 
   const startSpawningObjects = () => {
     if (spawnObjectsRef.current) clearInterval(spawnObjectsRef.current);
-
+  
     const { spawnRate } = getDifficultySettings();
     spawnObjectsRef.current = setInterval(() => {
       const randomIndex = Math.floor(Math.random() * fallingItems.length);
+      const fallingItem = fallingItems[randomIndex];
       const object = {
         id: Date.now(),
-        src: fallingItems[randomIndex],
+        src: fallingItem.src,
+        type: fallingItem.type,
         x: Math.random() * (window.innerWidth - 50),
         y: -100,
         speed: (Math.random() * 5 + 2) * getDifficultySettings().speedMultiplier,
@@ -115,6 +142,7 @@ function App() {
       setFallingObjects((prevObjects) => [...prevObjects, object]);
     }, spawnRate);
   };
+  
 
   useEffect(() => {
     return () => clearInterval(spawnObjectsRef.current);
@@ -124,7 +152,7 @@ function App() {
     const currentLevel = levels[level - 1];
 
     if (score >= currentLevel.requiredPoints && level < 5) {
-      setLevelPassed(true); l
+      setLevelPassed(true); 
       setIsPaused(true);
       clearInterval(timerRef.current); 
       clearInterval(spawnObjectsRef.current); 
@@ -212,7 +240,7 @@ function App() {
   // Verifica a colisão entre o cursor e os objetos
   useEffect(() => {
     if (!gameStarted || isPaused || levelPassed || gamePaused) return;
-
+  
     const checkCollisions = () => {
       setFallingObjects((prevObjects) => {
         let newScore = score;
@@ -222,24 +250,30 @@ function App() {
             obj.x + objectWidth > mouseX &&
             obj.y + objectHeight >= 650 &&
             obj.y < 650 + cursorHeight;
-
+  
           if (isColliding) {
-            newScore += 1; 
-            playPopSound(); 
+            if (obj.type === 'candy') {
+              newScore += 1; 
+              playPopSound();
+            } else if (obj.type === 'bomb') {
+              newScore = Math.max(newScore - 1, 0); 
+              playBombSound();
+            }
           }
-
+  
           return !isColliding; 
         });
-
-        setScore(newScore); 
-        return newObjects; 
+  
+        setScore(newScore);
+        return newObjects;
       });
     };
-
-    const intervalId = setInterval(checkCollisions, 16); 
-
+  
+    const intervalId = setInterval(checkCollisions, 16);
+  
     return () => clearInterval(intervalId);
   }, [mouseX, fallingObjects, gameStarted, isPaused, levelPassed, gamePaused]);
+  
 
   useEffect(() => {
     if (!gameStarted) return;
@@ -261,30 +295,20 @@ function App() {
         <NextButton onNext={nextLevel} />
       ) : (
         <>
-          <div>
-            <h1>Pontuação: {score}</h1>
-            <h1>Nível: {level}</h1>
-            <h1>Tempo restante: {timeLeft}s</h1>
+          <div className="score-container">
+            <h1 className="score">Pontuação: {score}</h1>
+            <h1 className="level">Nível: {level}</h1>
+            <h1 className="time-left">Tempo restante: {timeLeft}s</h1>
           </div>
-          <img
-            src={cursorImage}
-            alt="Cursor"
-            className="custom-cursor"
-            style={{ left: `${mouseX}px` }}
-          />
+          <img src={cursorImage} alt="Cursor" className="custom-cursor" style={{ left: `${mouseX}px` }} />
           {fallingObjects.map((obj) => (
-            <img
-              key={obj.id}
-              src={obj.src}
-              alt="Falling object"
-              className="falling-object"
-              style={{ left: `${obj.x}px`, top: `${obj.y}px` }}
-            />
+            <img key={obj.id} src={obj.src} alt="Falling object" className="falling-object" style={{ left: `${obj.x}px`, top: `${obj.y}px` }} />
           ))}
         </>
       )}
     </div>
   );
+  
 }
 
 export default App;

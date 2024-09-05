@@ -1,29 +1,59 @@
+@font-face {
+  font-family: 'Press Start 2P';
+  src: url('../assets/fonts/PressStart2P-Regular.ttf') format('truetype');
+}
+
 .start-container {
     width: 300px;
     height: 500px;
     display: flex;
-    justify-content: center;
+    justify-content: flex-start;
+    flex-direction: column;
     align-items: center;
-    background-color: #fff;
+    background: linear-gradient(135deg, #ffd1dc, #fff5e1); /* Gradiente de tons doces */
     border-radius: 20px;
     position: absolute;
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    cursor: default;
-  }
-  
-  .start-button {
+    border: solid 3px #ff6f61; /* Borda com cor mais vibrante */
+    box-shadow: 0px 10px 20px rgba(0, 0, 0, 0.15); /* Sombra suave para dar profundidade */
+    transition: transform 0.3s ease; /* Transição suave */
+}
+
+.start-button {
+    font-family: 'Press Start 2P';
     padding: 20px 40px;
-    font-size: 24px;
-    cursor: pointer;
-    background-color: #007bff;
+    background-color: #ff6f61;
+    border: 3px solid #f45b69;
     color: white;
-    border: none;
-    border-radius: 5px;
-    transition: background-color 0.3s ease;
-  }
-  
-  .start-button:hover {
-    background-color: #0056b3;
-  }
+    border-radius: 15px;
+    font-size: 20px;
+    box-shadow: 0 5px #d34a4a;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.start-button:hover {
+    background-color: #ff857f;
+}
+
+.start-button:active {
+    background-color: #f45b69;
+    box-shadow: 0 3px #d34a4a;
+    transform: translateY(3px);
+}
+
+.start-back {
+    width: 100%;
+    height: 100%;
+    cursor: default;
+}
+
+.imgStart {
+    width: 90%;
+    height: 60%;
+    margin-bottom: 20px;
+    border-radius: 10px;
+    box-shadow: 0px 5px 15px rgba(0, 0, 0, 0.1);
+}
