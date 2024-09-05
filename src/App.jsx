@@ -10,24 +10,63 @@ import pirulito1 from './assets/images/pirulito1.png';
 import pirulito2 from './assets/images/pirulito2.png';
 import pirulito3 from './assets/images/pirulito3.png';
 import popSoundFile from './assets/sounds/pop.mp3';
-import StartButton from './components/StartButton'; // Importando o componente StartButton
+import StartButton from './components/StartButton';
+import NextButton from './components/NextButton';
+import PauseButton from './components/PauseButton';
 
 const fallingItems = [bala1, bala2, bala3, chicle1, choco1, pirulito1, pirulito2, pirulito3];
+
+const levels = [
+  { level: 1, requiredPoints: 5, speedMultiplier: 0.5, spawnRate: 2000 },
+  { level: 2, requiredPoints: 10, speedMultiplier: 1, spawnRate: 1500 },
+  { level: 3, requiredPoints: 15, speedMultiplier: 1.5, spawnRate: 1000 },
+  { level: 4, requiredPoints: 20, speedMultiplier: 2, spawnRate: 800 },
+  { level: 5, requiredPoints: 30, speedMultiplier: 2.5, spawnRate: 600 },
+];
 
 function App() {
   const [mouseX, setMouseX] = useState(0);
   const [score, setScore] = useState(0);
   const [fallingObjects, setFallingObjects] = useState([]);
-  const [isAudioUnlocked, setIsAudioUnlocked] = useState(false); 
-  const [gameStarted, setGameStarted] = useState(false); // Controla se o jogo começou
-  const [isPaused, setIsPaused] = useState(false); // Controla se o jogo está pausado
+  const [isAudioUnlocked, setIsAudioUnlocked] = useState(false);
+  const [gameStarted, setGameStarted] = useState(false);
+  const [isPaused, setIsPaused] = useState(false);
+  const [level, setLevel] = useState(1);
+  const [timeLeft, setTimeLeft] = useState(30);
+  const [levelPassed, setLevelPassed] = useState(false);
+  const [gamePaused, setGamePaused] = useState(false); 
 
   const popSound = useRef(null);
+  const timerRef = useRef(null);
+  const spawnObjectsRef = useRef(null); 
 
   // Função para iniciar ou continuar o jogo
   const startGame = () => {
-    setIsPaused(false); // Remove a pausa, se houver
-    setGameStarted(true); // Inicia o jogo
+    setIsPaused(false);
+    setGameStarted(true);
+    setGamePaused(false); 
+    setLevelPassed(false);
+    setTimeLeft(30); 
+    setFallingObjects([]);
+    startTimer();
+    startSpawningObjects(); 
+  };
+
+  // Função para passar para o próximo nível
+  const nextLevel = () => {
+    setLevel(level + 1);
+    setScore(0);
+    setFallingObjects([]);
+    setLevelPassed(false); 
+    setTimeLeft(30); 
+
+    startGame();
+  };
+
+  const resumeGame = () => {
+    setGamePaused(false);
+    startTimer(); 
+    startSpawningObjects(); 
   };
 
   const unlockAudio = () => {
@@ -46,6 +85,96 @@ function App() {
     }
   };
 
+  const startTimer = () => {
+    if (timerRef.current) clearInterval(timerRef.current);
+    timerRef.current = setInterval(() => {
+      setTimeLeft((prev) => {
+        if (prev <= 1) {
+          clearInterval(timerRef.current);
+          setIsPaused(true); 
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+  };
+
+  const startSpawningObjects = () => {
+    if (spawnObjectsRef.current) clearInterval(spawnObjectsRef.current);
+
+    const { spawnRate } = getDifficultySettings();
+    spawnObjectsRef.current = setInterval(() => {
+      const randomIndex = Math.floor(Math.random() * fallingItems.length);
+      const object = {
+        id: Date.now(),
+        src: fallingItems[randomIndex],
+        x: Math.random() * (window.innerWidth - 50),
+        y: -100,
+        speed: (Math.random() * 5 + 2) * getDifficultySettings().speedMultiplier,
+      };
+      setFallingObjects((prevObjects) => [...prevObjects, object]);
+    }, spawnRate);
+  };
+
+  useEffect(() => {
+    return () => clearInterval(spawnObjectsRef.current);
+  }, []);
+
+  useEffect(() => {
+    const currentLevel = levels[level - 1];
+
+    if (score >= currentLevel.requiredPoints && level < 5) {
+      setLevelPassed(true); l
+      setIsPaused(true);
+      clearInterval(timerRef.current); 
+      clearInterval(spawnObjectsRef.current); 
+    } else if (level === 5 && timeLeft === 0) {
+
+      alert(`Parabéns! Você completou o jogo. Sua pontuação final foi: ${score}`);
+      resetGame();
+    } else if (timeLeft === 0 && score < currentLevel.requiredPoints) {
+
+      alert(`Você não atingiu a pontuação mínima de ${currentLevel.requiredPoints} pontos. O nível será reiniciado.`);
+      restartLevel();
+    }
+  }, [score, level, timeLeft]);
+
+  const restartLevel = () => {
+    setScore(0); 
+    setTimeLeft(30); 
+    setFallingObjects([]);
+    startTimer(); 
+    startSpawningObjects();
+
+    startGame();
+  };
+
+  const resetGame = () => {
+    setGameStarted(false);
+    setLevel(1);
+    setScore(0);
+    setFallingObjects([]); 
+    setTimeLeft(30);
+    clearInterval(spawnObjectsRef.current);
+  };
+
+  // Pausar o jogo ao pressionar "Esc"
+  useEffect(() => {
+    const handleKeyDown = (event) => {
+      if (event.key === 'Escape' && gameStarted && !gamePaused) {
+        setGamePaused(true); 
+        clearInterval(timerRef.current); 
+        clearInterval(spawnObjectsRef.current);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [gameStarted, gamePaused]);
+
   const cursorWidth = 70;
   const cursorHeight = 70;
   const objectWidth = 50;
@@ -57,57 +186,12 @@ function App() {
     unlockAudio();
   };
 
-  const getDifficultySettings = (currentScore) => {
-    if (currentScore <= 5) {
-      return { speedMultiplier: 0.5, spawnRate: 2000 };
-    } else if (currentScore <= 10) {
-      return { speedMultiplier: 1, spawnRate: 1500 };
-    } else if (currentScore <= 15) {
-      return { speedMultiplier: 1.5, spawnRate: 1000 };
-    } else {
-      return { speedMultiplier: 2, spawnRate: 500 };
-    }
+  const getDifficultySettings = () => {
+    return levels[level - 1]; // Retorna as configurações do nível atual
   };
 
-  // Captura da tecla "Esc" para pausar o jogo
   useEffect(() => {
-    const handleKeyDown = (event) => {
-      if (event.key === 'Escape' && gameStarted) {
-        setIsPaused((prev) => !prev); // Alterna o estado de pausa
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-
-    return () => {
-      window.removeEventListener('keydown', handleKeyDown);
-    };
-  }, [gameStarted]);
-
-  useEffect(() => {
-    if (!gameStarted || isPaused) return; // Pausa o jogo se estiver pausado
-
-    const { spawnRate } = getDifficultySettings(score);
-
-    const createFallingObject = () => {
-      const randomIndex = Math.floor(Math.random() * fallingItems.length);
-      const object = {
-        id: Date.now(),
-        src: fallingItems[randomIndex],
-        x: Math.random() * (window.innerWidth - objectWidth),
-        y: -100,
-        speed: (Math.random() * 5 + 2) * getDifficultySettings(score).speedMultiplier,
-      };
-      setFallingObjects((prevObjects) => [...prevObjects, object]);
-    };
-
-    const intervalId = setInterval(createFallingObject, spawnRate);
-
-    return () => clearInterval(intervalId);
-  }, [score, gameStarted, isPaused]);
-
-  useEffect(() => {
-    if (!gameStarted || isPaused) return;
+    if (!gameStarted || isPaused || levelPassed || gamePaused) return;
 
     const updateFallingObjects = () => {
       setFallingObjects((prevObjects) =>
@@ -123,10 +207,11 @@ function App() {
     const intervalId = setInterval(updateFallingObjects, 16);
 
     return () => clearInterval(intervalId);
-  }, [gameStarted, isPaused]);
+  }, [gameStarted, isPaused, levelPassed, gamePaused]);
 
+  // Verifica a colisão entre o cursor e os objetos
   useEffect(() => {
-    if (!gameStarted || isPaused) return;
+    if (!gameStarted || isPaused || levelPassed || gamePaused) return;
 
     const checkCollisions = () => {
       setFallingObjects((prevObjects) => {
@@ -139,63 +224,48 @@ function App() {
             obj.y < 650 + cursorHeight;
 
           if (isColliding) {
-            newScore += 1;
-            playPopSound();
+            newScore += 1; 
+            playPopSound(); 
           }
 
-          return !isColliding;
+          return !isColliding; 
         });
 
-        if (newObjects.length !== prevObjects.length) {
-          setScore(newScore);
-        }
-
-        return newObjects;
+        setScore(newScore); 
+        return newObjects; 
       });
     };
 
-    const intervalId = setInterval(checkCollisions, 16);
+    const intervalId = setInterval(checkCollisions, 16); 
 
     return () => clearInterval(intervalId);
-  }, [mouseX, fallingObjects, score, gameStarted, isPaused]);
+  }, [mouseX, fallingObjects, gameStarted, isPaused, levelPassed, gamePaused]);
 
   useEffect(() => {
-    if (!gameStarted || isPaused) return;
+    if (!gameStarted) return;
 
-    const checkMissedObjects = () => {
-      const missedObject = fallingObjects.some(
-        (obj) => obj.y >= 650 && !(obj.x >= mouseX && obj.x <= mouseX + cursorWidth)
-      );
-
-      if (missedObject) {
-        setScore(0); 
-      }
-    };
-
-    const intervalId = setInterval(checkMissedObjects, 16);
-
-    return () => clearInterval(intervalId);
-  }, [fallingObjects, mouseX, gameStarted, isPaused]);
-
-  useEffect(() => {
-    if (gameStarted && !isPaused) {
-      window.addEventListener('mousemove', handleMouseMove);
-    } else {
-      window.removeEventListener('mousemove', handleMouseMove);
-    }
+    window.addEventListener('mousemove', handleMouseMove);
 
     return () => {
       window.removeEventListener('mousemove', handleMouseMove);
     };
-  }, [gameStarted, isPaused]);
+  }, [gameStarted]);
 
   return (
     <div className="App">
-      {!gameStarted || isPaused ? (
-        <StartButton onStart={startGame} isPaused={isPaused} /> // Exibe o botão de "Continuar" se pausado
+      {!gameStarted ? (
+        <StartButton onStart={startGame} />
+      ) : gamePaused ? (
+        <PauseButton onResume={resumeGame} />
+      ) : levelPassed ? (
+        <NextButton onNext={nextLevel} />
       ) : (
         <>
-          <h1>Pontuação: {score}</h1>
+          <div>
+            <h1>Pontuação: {score}</h1>
+            <h1>Nível: {level}</h1>
+            <h1>Tempo restante: {timeLeft}s</h1>
+          </div>
           <img
             src={cursorImage}
             alt="Cursor"
