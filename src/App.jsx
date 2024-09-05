@@ -19,9 +19,13 @@ import bubbleSoundFile from './assets/sounds/bubble.mp3';
 import clockSoundFile from './assets/sounds/clock.mp3';
 import passPhaseSoundFile from './assets/sounds/passphase.mp3';
 import songSoundFile from './assets/sounds/song.mp3';
+import winSoundFile from './assets/sounds/winSound.mp3';
+import loseSoundFile from './assets/sounds/loseSound.mp3';
 import StartButton from './components/StartButton';
 import NextButton from './components/NextButton';
 import PauseButton from './components/PauseButton';
+import WinButton from './components/WinButton';
+import RetryButton from './components/RetryButton';
 
 const backgroundMusic = new Howl({
   src: [songSoundFile],
@@ -41,7 +45,7 @@ const fallingItems = [
   { src: clock, type: 'clock' }
 ];
 
-const levels = [
+const levels = [ //dados levels
   { level: 1, requiredPoints: 5, speedMultiplier: 0.5, spawnRate: 2000 },
   { level: 2, requiredPoints: 10, speedMultiplier: 1, spawnRate: 1500 },
   { level: 3, requiredPoints: 15, speedMultiplier: 1.5, spawnRate: 1000 },
@@ -62,6 +66,8 @@ function App() {
   const [isDoublePointsActive, setIsDoublePointsActive] = useState(false);
   const doublePointsTimeout = useRef(null);
   const [isMusicPlaying, setIsMusicPlaying] = useState(true);
+  const [gameWon, setGameWon] = useState(false);
+  const [levelFailed, setLevelFailed] = useState(false);
 
   const toggleMusic = () => {
     if (isMusicPlaying) {
@@ -88,6 +94,8 @@ function App() {
   const bubbleSound = useRef(null);
   const clockSound = useRef(null);
   const passPhaseSound = useRef(null); 
+  const winSound = useRef(null);
+  const loseSound = useRef(null);
 
   const initializeSounds = () => {
     popSound.current = new Howl({ src: [popSoundFile] });
@@ -95,6 +103,8 @@ function App() {
     bubbleSound.current = new Howl({ src: [bubbleSoundFile] });
     clockSound.current = new Howl({ src: [clockSoundFile] });
     passPhaseSound.current = new Howl({ src: [passPhaseSoundFile] }); 
+    winSound.current = new Howl({ src: [winSoundFile] });
+    loseSound.current = new Howl({ src: [loseSoundFile] });
   };
 
   const startGame = () => {
@@ -109,7 +119,7 @@ function App() {
     } else {
       // nada
     }
-  
+ 
     initializeSounds(); 
     setIsPaused(false);
     setGameStarted(true);
@@ -199,13 +209,31 @@ function App() {
       clearInterval(timerRef.current);
       clearInterval(spawnObjectsRef.current);
     } else if (level === 5 && timeLeft === 0) {
-      alert(`Parabéns! Você completou o jogo. Sua pontuação final foi: ${score}`);
-      resetGame();
+      setGameWon(true); // Jogador venceu
     } else if (timeLeft === 0 && score < currentLevel.requiredPoints) {
-      alert(`Você não atingiu a pontuação mínima de ${currentLevel.requiredPoints} pontos. O nível será reiniciado.`);
-      restartLevel();
+      setLevelFailed(true); // Jogador falhou no nível
     }
   }, [score, level, timeLeft]);
+
+  const retryLevel = () => {
+    setScore(0);
+    setTimeLeft(30);
+    setFallingObjects([]);
+    setLevelFailed(false); 
+    startTimer();
+    startSpawningObjects();
+    startGame(); 
+  };
+
+  const restartGame = () => {
+    setGameStarted(false);
+    setLevel(1);
+    setScore(0);
+    setFallingObjects([]);
+    setTimeLeft(30);
+    setGameWon(false);
+    clearInterval(spawnObjectsRef.current);
+  };
 
   const restartLevel = () => {
     setScore(0);
@@ -295,6 +323,7 @@ function App() {
               popSound.current.play(); 
             } else if (obj.type === 'bomb') {
               newScore = Math.max(newScore - 1, 0);
+              newTimeLeft = newTimeLeft - 5
               bombSound.current.play(); 
             } else if (obj.type === 'double') {
               bubbleSound.current.play(); 
@@ -324,6 +353,18 @@ function App() {
 
     return () => clearInterval(intervalId);
   }, [mouseX, fallingObjects, gameStarted, isPaused, levelPassed, gamePaused, isDoublePointsActive, timeLeft]);
+
+  useEffect(() => {
+    if (gameWon) {
+      winSound.current.play(); // Toca o som de vitória
+    }
+  }, [gameWon]);
+  
+  useEffect(() => {
+    if (levelFailed) {
+      loseSound.current.play(); // Toca o som de falha
+    }
+  }, [levelFailed]);
 
   useEffect(() => {
     if (levelPassed) {
@@ -370,6 +411,10 @@ function App() {
         <PauseButton onResume={resumeGame} toggleMusic={toggleMusic} isMusicPlaying={isMusicPlaying} />
       ) : levelPassed ? (
         <NextButton onNext={nextLevel} toggleMusic={toggleMusic} isMusicPlaying={isMusicPlaying} />
+      ) : gameWon ? (
+        <WinButton onRestart={restartGame} score={score} />
+      ) : levelFailed ? (
+        <RetryButton onRetry={retryLevel} level={level} />
       ) : (
         <>
           <div className="score-container">
