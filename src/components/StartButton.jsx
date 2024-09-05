@@ -1,9 +1,9 @@
 import React from 'react';
 import './StartButton.css';
-import candy from '../assets/images/candy.png'
-import clickSound from '../assets/sounds/pop.mp3'
+import candy from '../assets/images/candy.png';
+import clickSound from '../assets/sounds/pop.mp3';
 
-const StartButton = ({ onStart}) => {
+const StartButton = ({ onStart, toggleMusic, isMusicPlaying }) => {
 
   const playClickSound = () => {
     const audio = new Audio(clickSound);
@@ -20,7 +20,10 @@ const StartButton = ({ onStart}) => {
       <div className="start-container">
         <img src={candy} alt="titulo" className='imgStart' />
         <button className="start-button" onClick={handleClick}>
-        Começar
+          Começar
+        </button>
+        <button className="music-toggle" onClick={toggleMusic}>
+          {isMusicPlaying ? '🔊' : '🔇'} 
         </button>
       </div>
     </div>

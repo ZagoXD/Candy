@@ -1,9 +1,9 @@
 import React from 'react';
 import './PauseButton.css';
-import candy from '../assets/images/candy.png'
-import clickSound from '../assets/sounds/pop.mp3'
+import candy from '../assets/images/candy.png';
+import clickSound from '../assets/sounds/pop.mp3';
 
-const PauseButton = ({ onResume }) => {
+const PauseButton = ({ onResume, toggleMusic, isMusicPlaying }) => {
 
   const playClickSound = () => {
     const audio = new Audio(clickSound);
@@ -21,6 +21,9 @@ const PauseButton = ({ onResume }) => {
         <img src={candy} alt="titulo" className='imgPause' />
         <button className="pause-button" onClick={handleClick}>
           Continuar
+        </button>
+        <button className="music-toggle" onClick={toggleMusic}>
+          {isMusicPlaying ? '🔊' : '🔇'} 
         </button>
       </div>
     </div>
