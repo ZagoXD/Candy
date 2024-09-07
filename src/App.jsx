@@ -26,6 +26,8 @@ import NextButton from './components/NextButton';
 import PauseButton from './components/PauseButton';
 import WinButton from './components/WinButton';
 import RetryButton from './components/RetryButton';
+import SettingsIcon from '@mui/icons-material/Settings';
+import bgImage from './assets/images/bg.png'; // Importa a imagem de fundo
 
 const backgroundMusic = new Howl({
   src: [songSoundFile],
@@ -68,7 +70,54 @@ function App() {
   const [isMusicPlaying, setIsMusicPlaying] = useState(true);
   const [gameWon, setGameWon] = useState(false);
   const [levelFailed, setLevelFailed] = useState(false);
+  const cursorRef = useRef(null);
+  const [cursorDimensions, setCursorDimensions] = useState({ width: 70, height: 70 });
+  const [objectDimensions, setObjectDimensions] = useState({ width: 50, height: 50 });
+  const [loading, setLoading] = useState(true);
 
+  const preloadAssets = async () => {
+    const images = [
+      bala1, bala2, bala3, chicle1, choco1, pirulito1, pirulito2, pirulito3, bomb, clock,
+      bgImage // Carrega a imagem de fundo
+    ];
+    
+    const sounds = [popSoundFile, bombSoundFile, bubbleSoundFile, clockSoundFile, passPhaseSoundFile, winSoundFile, loseSoundFile, songSoundFile];
+  
+    // Função para carregar imagens
+    const loadImages = images.map(src => new Promise((resolve, reject) => {
+      const img = new Image();
+      img.src = src;
+      img.onload = resolve;
+      img.onerror = reject; // Adiciona tratamento de erro
+    }));
+  
+    // Função para carregar sons
+    const loadSounds = sounds.map(src => new Promise((resolve, reject) => {
+      const sound = new Howl({
+        src: [src],
+        onload: resolve,
+        onloaderror: reject, // Adiciona tratamento de erro
+      });
+    }));
+  
+    try {
+      await Promise.all([...loadImages, ...loadSounds]);
+      setLoading(false); // Define o carregamento como concluído
+    } catch (error) {
+      console.error('Erro no carregamento de recursos:', error);
+    }
+  };
+  
+  
+  useEffect(() => {
+    const loadGameAssets = async () => {
+      await preloadAssets();
+      setLoading(false); // Certifique-se de que isso seja chamado quando tudo for carregado
+    };
+    
+    loadGameAssets();
+  }, []);
+  
   const toggleMusic = () => {
     if (isMusicPlaying) {
       backgroundMusic.pause();
@@ -235,23 +284,30 @@ function App() {
     clearInterval(spawnObjectsRef.current);
   };
 
-  const restartLevel = () => {
-    setScore(0);
-    setTimeLeft(30);
-    setFallingObjects([]);
-    startTimer();
-    startSpawningObjects();
-    startGame();
-  };
+  // const restartLevel = () => {
+  //   setScore(0);
+  //   setTimeLeft(30);
+  //   setFallingObjects([]);
+  //   startTimer();
+  //   startSpawningObjects();
+  //   startGame();
+  // };
 
-  const resetGame = () => {
-    setGameStarted(false);
-    setLevel(1);
-    setScore(0);
-    setFallingObjects([]);
-    setTimeLeft(30);
+  // const resetGame = () => {
+  //   setGameStarted(false);
+  //   setLevel(1);
+  //   setScore(0);
+  //   setFallingObjects([]);
+  //   setTimeLeft(30);
+  //   clearInterval(spawnObjectsRef.current);
+  // };
+
+  const pauseGame = () =>{
+    popSound.current.play(); 
+    setGamePaused(true);
+    clearInterval(timerRef.current);
     clearInterval(spawnObjectsRef.current);
-  };
+  }
 
   useEffect(() => {
     const handleKeyDown = (event) => {
@@ -271,14 +327,9 @@ function App() {
   }, [gameStarted, gamePaused]);
 
   const cursorWidth = 70;
-  const cursorHeight = 70;
-  const objectWidth = 50;
-  const objectHeight = 50;
-
-  const handleMouseMove = (event) => {
-    const maxX = window.innerWidth - cursorWidth;
-    setMouseX(Math.min(event.clientX, maxX));
-  };
+  // const cursorHeight = 70;
+  // const objectWidth = 50;
+  // const objectHeight = 50;
 
   const getDifficultySettings = () => {
     return levels[level - 1];
@@ -303,46 +354,76 @@ function App() {
     return () => clearInterval(intervalId);
   }, [gameStarted, isPaused, levelPassed, gamePaused]);
 
+  const calculateCursorY = () => {
+    return window.innerHeight * 0.77;
+  };
+
+  // Ajuste dinâmico das dimensões com base no tamanho da tela
+  const updateDimensions = () => {
+    const width = window.innerWidth;
+
+    // Ajuste as dimensões do cursor e dos objetos caindo com base no tamanho da tela
+    const newCursorDimensions = width < 768 ? { width: 50, height: 50 } : { width: 70, height: 70 };
+    const newObjectDimensions = width < 768 ? { width: 30, height: 30 } : { width: 50, height: 50 };
+
+    setCursorDimensions(newCursorDimensions);
+    setObjectDimensions(newObjectDimensions);
+  };
+
+  useEffect(() => {
+    updateDimensions();
+    window.addEventListener('resize', updateDimensions);
+
+    return () => window.removeEventListener('resize', updateDimensions);
+  }, []);
+
+  const handleMouseMove = (event) => {
+    const maxX = window.innerWidth - cursorDimensions.width;
+    setMouseX(Math.min(event.clientX, maxX));
+  };
+
   useEffect(() => {
     if (!gameStarted || isPaused || levelPassed || gamePaused) return;
 
     const checkCollisions = () => {
       setFallingObjects((prevObjects) => {
         let newScore = score;
-        let newTimeLeft = timeLeft;
+        let newTimeLeft = timeLeft; 
+  
+        const cursorY = calculateCursorY();
+  
         const newObjects = prevObjects.filter((obj) => {
           const isColliding =
-            obj.x < mouseX + cursorWidth &&
-            obj.x + objectWidth > mouseX &&
-            obj.y + objectHeight >= 650 &&
-            obj.y < 650 + cursorHeight;
-
+            obj.x < mouseX + cursorDimensions.width &&
+            obj.x + objectDimensions.width > mouseX &&
+            obj.y + objectDimensions.height >= cursorY &&
+            obj.y < cursorY + cursorDimensions.height;
+  
           if (isColliding) {
             if (obj.type === 'candy') {
               newScore += isDoublePointsActive ? 2 : 1;
-              popSound.current.play(); 
+              popSound.current.play();
             } else if (obj.type === 'bomb') {
               newScore = Math.max(newScore - 1, 0);
-              newTimeLeft = newTimeLeft - 5
-              bombSound.current.play(); 
+              newTimeLeft = Math.max(newTimeLeft - 5, 0); 
+              bombSound.current.play();
             } else if (obj.type === 'double') {
-              bubbleSound.current.play(); 
               setIsDoublePointsActive(true);
+              bubbleSound.current.play();
               clearTimeout(doublePointsTimeout.current);
               doublePointsTimeout.current = setTimeout(() => {
                 setIsDoublePointsActive(false);
               }, 10000);
             } else if (obj.type === 'clock') {
-              newTimeLeft += 15; 
-              clockSound.current.play(); 
+              newTimeLeft += 15;
+              clockSound.current.play();
             }
-
+  
             return false; 
           }
-
           return true; 
         });
-
+  
         setScore(newScore);
         setTimeLeft(newTimeLeft); 
         return newObjects;
@@ -374,7 +455,6 @@ function App() {
 
   useEffect(() => {
     return () => {
-      // Verifica se o som foi inicializado corretamente antes de descarregá-lo
       if (passPhaseSound.current) {
         passPhaseSound.current.unload();
       }
@@ -401,11 +481,52 @@ function App() {
     return () => {
       window.removeEventListener('mousemove', handleMouseMove);
     };
+
+    
   }, [gameStarted]);
 
+  useEffect(() => {
+    const handleMouseMove = (event) => {
+      const maxX = window.innerWidth - cursorWidth;
+      setMouseX(Math.min(event.clientX, maxX));
+    };
+  
+    const handleTouchMove = (event) => {
+      const touchX = event.touches[0].clientX;
+      const maxX = window.innerWidth - cursorWidth;
+      setMouseX(Math.min(touchX, maxX));
+    };
+  
+    const handleTouchStart = () => {
+      // Nada por enquanto
+    };
+  
+    const handleTouchEnd = () => {
+      // Nada por enquanto
+    };
+  
+    if (gameStarted) {
+      window.addEventListener('mousemove', handleMouseMove);
+      window.addEventListener('touchmove', handleTouchMove);
+      window.addEventListener('touchstart', handleTouchStart);
+      window.addEventListener('touchend', handleTouchEnd);
+    }
+  
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('touchmove', handleTouchMove);
+      window.removeEventListener('touchstart', handleTouchStart);
+      window.removeEventListener('touchend', handleTouchEnd);
+    };
+  }, [gameStarted]);
+    
   return (
     <div className="App">
-      {!gameStarted ? (
+      {loading ? (
+        <div className="loading-screen">
+          <h1>Carregando...</h1>
+        </div>
+      ) : !gameStarted ? (
         <StartButton onStart={startGame} toggleMusic={toggleMusic} isMusicPlaying={isMusicPlaying} />
       ) : gamePaused ? (
         <PauseButton onResume={resumeGame} toggleMusic={toggleMusic} isMusicPlaying={isMusicPlaying} />
@@ -417,12 +538,15 @@ function App() {
         <RetryButton onRetry={retryLevel} level={level} />
       ) : (
         <>
-          <div className="score-container">
-            <h1 className="score">Pontuação: {score} {isDoublePointsActive && <span className="double-points">X2</span>}</h1>
-            <h1 className="level">Nível: {level}</h1>
-            <h1 className="time-left">Tempo restante: {timeLeft}s</h1>
+          <div className='container'>
+            <div className="score-container">
+              <h1 className="score">Pontuação: {score} {isDoublePointsActive && <span className="double-points">X2</span>}</h1>
+              <h1 className="level">Nível: {level}</h1>
+              <h1 className="time-left">Tempo restante: {timeLeft}s</h1>
+            </div>
+            <button className='btnPausar' onClick={pauseGame}><SettingsIcon className="settings-icon" /></button>
           </div>
-          <img src={cursorImage} alt="Cursor" className="custom-cursor" style={{ left: `${mouseX}px` }} />
+          <img src={cursorImage} alt="Cursor" className="custom-cursor" ref={cursorRef} style={{ left: `${mouseX}px` }} />
           {fallingObjects.map((obj) => (
             <img key={obj.id} src={obj.src} alt="Falling object" className="falling-object" style={{ left: `${obj.x}px`, top: `${obj.y}px` }} />
           ))}

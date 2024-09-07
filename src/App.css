@@ -3,6 +3,38 @@
   src: url('./assets/fonts/PressStart2P-Regular.ttf') format('truetype');
 }
 
+.loading-screen {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  background-color: #000;
+  color: #fff;
+  font-size: 2rem;
+}
+
+.progress-bar-container {
+  width: 80%;
+  background-color: #555;
+  border-radius: 10px;
+  height: 20px;
+  margin-top: 20px;
+}
+
+.progress-bar {
+  height: 100%;
+  background-color: #4caf50;
+  border-radius: 10px;
+  transition: width 0.5s ease;
+}
+
+
+
 .score-container h1 {
   font-family: 'Press Start 2P', cursive;
   color: #ff6f61; 
@@ -35,6 +67,7 @@
   border: 3px solid #218838;
 }
 
+
 .App {
   height: 100vh;
   display: flex;
@@ -51,7 +84,7 @@
 
 .custom-cursor {
   position: absolute;
-  top: 650px;
+  top: 77vh;
   width: 70px;
   height: 70px;
 }
@@ -60,4 +93,71 @@
   position: absolute;
   width: 50px;
   height: 50px;
+}
+
+.settings-icon {
+  font-size: 40px;
+  color: black;
+  z-index: 1000;
+  margin: 20px;
+}
+
+.container{
+  display: flex;
+  justify-content: space-between;
+  height: auto;
+  width: 100%;
+}
+
+.btnPausar{
+  width: 50px;
+  height: 50px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background-color: transparent;
+  border: none;
+  cursor: pointer;
+}
+
+/* Para telas menores, como celulares */
+@media (max-width: 768px) {
+  .custom-cursor {
+    width: 50px;
+    height: 50px;
+  }
+
+  .falling-object {
+    width: 30px;
+    height: 30px;
+  }
+
+  .score-container h1 {
+    font-size: 12px;
+  }
+
+  .settings-icon {
+    font-size: 30px;
+  }
+}
+
+/* Para tablets */
+@media (max-width: 1024px) {
+  .custom-cursor {
+    width: 60px;
+    height: 60px;
+  }
+
+  .falling-object {
+    width: 40px;
+    height: 40px;
+  }
+
+  .score-container h1 {
+    font-size: 14px;
+  }
+
+  .settings-icon {
+    font-size: 35px;
+  }
 }
